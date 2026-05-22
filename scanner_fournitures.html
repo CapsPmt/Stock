@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Stock Fournitures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0E1117;
+    --surface: #1A1F2B;
+    --surface2: #242938;
+    --accent: #4A9FE0;
+    --accent2: #2E6DA4;
+    --success: #2ECC71;
+    --warn: #F39C12;
+    --danger: #E74C3C;
+    --text: #EEF2F7;
+    --text2: #8B95A8;
+    --border: rgba(255,255,255,0.07);
+    --radius: 16px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 430px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 52px 20px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .header-left h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .header-left p {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .badge-user {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* ── SCANNER ZONE ── */
+  .scanner-wrap {
+    flex-shrink: 0;
+    margin: 0 16px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    background: #000;
+    aspect-ratio: 1 / 0.65;
+  }
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #canvas { display: none; }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .scan-box {
+    width: 62%;
+    aspect-ratio: 2.5 / 1;
+    position: relative;
+  }
+  .scan-box::before, .scan-box::after,
+  .scan-box span::before, .scan-box span::after {
+    content: "";
+    position: absolute;
+    width: 18px; height: 18px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .scan-box::before  { top: 0; left: 0;   border-width: 2.5px 0 0 2.5px; border-radius: 3px 0 0 0; }
+  .scan-box::after   { top: 0; right: 0;  border-width: 2.5px 2.5px 0 0; border-radius: 0 3px 0 0; }
+  .scan-box span::before { bottom: 0; left: 0;  border-width: 0 0 2.5px 2.5px; border-radius: 0 0 0 3px; }
+  .scan-box span::after  { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; border-radius: 0 0 3px 0; }
+
+  .scan-line {
+    position: absolute;
+    left: 8px; right: 8px;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    top: 10%;
+    animation: sweep 2.4s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  @keyframes sweep { 0%,100% { top: 10%; } 50% { top: 85%; } }
+
+  .camera-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--surface);
+  }
+  .camera-placeholder svg { opacity: 0.3; }
+  .camera-placeholder p { font-size: 13px; color: var(--text2); }
+
+  .btn-scan-start {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(74,159,224,0.4);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .btn-scan-start:active { transform: translateX(-50%) scale(0.96); }
+
+  /* ── SAISIE MANUELLE ── */
+  .manual-row {
+    display: flex;
+    gap: 10px;
+    padding: 14px 16px 0;
+    flex-shrink: 0;
+  }
+  .manual-row input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-family: var(--mono);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .manual-row input:focus { border-color: var(--accent2); }
+  .manual-row input::placeholder { color: var(--text2); font-family: var(--font); }
+  .btn-ok {
+    background: var(--accent2);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-ok:active { opacity: 0.8; }
+
+  /* ── RESULT ── */
+  .result-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .toast {
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    animation: fadeSlide 0.3s ease;
+  }
+  @keyframes fadeSlide { from { opacity:0; transform:translateY(10px); } }
+  .toast.success { background: rgba(46,204,113,0.12); border: 1px solid rgba(46,204,113,0.25); }
+  .toast.warn    { background: rgba(243,156,18,0.12);  border: 1px solid rgba(243,156,18,0.25); }
+  .toast.error   { background: rgba(231,76,60,0.12);   border: 1px solid rgba(231,76,60,0.25); }
+  .toast.info    { background: rgba(74,159,224,0.1);   border: 1px solid rgba(74,159,224,0.2); }
+  .toast-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .toast-body { flex: 1; }
+  .toast-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .toast.success .toast-title { color: var(--success); }
+  .toast.warn .toast-title    { color: var(--warn); }
+  .toast.error .toast-title   { color: var(--danger); }
+  .toast.info .toast-title    { color: var(--accent); }
+  .toast-msg { font-size: 13px; color: var(--text2); line-height: 1.45; }
+
+  .article-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    animation: fadeSlide 0.3s ease;
+  }
+  .article-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+  .article-ref  { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 14px; }
+
+  .stock-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .stock-pill {
+    flex: 1; border-radius: 12px; padding: 10px 8px;
+    text-align: center;
+  }
+  .stock-pill .num { font-size: 26px; font-weight: 600; line-height: 1; }
+  .stock-pill .lbl { font-size: 10px; margin-top: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .pill-before { background: var(--surface2); }
+  .pill-before .num, .pill-before .lbl { color: var(--text2); }
+  .pill-ok   { background: rgba(46,204,113,0.12); }
+  .pill-ok   .num, .pill-ok   .lbl { color: var(--success); }
+  .pill-warn { background: rgba(243,156,18,0.12); }
+  .pill-warn .num, .pill-warn .lbl { color: var(--warn); }
+  .pill-danger { background: rgba(231,76,60,0.12); }
+  .pill-danger .num, .pill-danger .lbl { color: var(--danger); }
+  .arrow { color: var(--text2); font-size: 18px; }
+
+  .article-meta {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text2);
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  .btn-confirm {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(74,159,224,0.3);
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .btn-confirm:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-confirm:disabled { opacity: 0.5; cursor: default; }
+
+  /* ── HISTORIQUE ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 0 8px;
+  }
+  .hist-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .hist-name { flex: 1; font-size: 13px; font-weight: 500; }
+  .hist-qty  { font-size: 13px; color: var(--danger); font-family: var(--mono); }
+  .hist-time { font-size: 11px; color: var(--text2); }
+
+  /* ── MODAL NOM ── */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: flex-end;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  .modal-bg.hidden { display: none; }
+  .modal {
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 28px 20px 40px;
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } }
+  .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .modal p  { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .modal input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 16px;
+    font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    margin-bottom: 14px;
+  }
+  .modal input:focus { border-color: var(--accent2); }
+  .btn-modal {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>📦 Fournitures</h1>
+      <p>Scanner pour décrémenter le stock</p>
+    </div>
+    <div class="badge-user" id="badge-user" onclick="changerNom()">👤 —</div>
+  </div>
+
+  <div class="scanner-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scan-overlay">
+      <div class="scan-box">
+        <span></span>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+    <div class="camera-placeholder" id="placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <p>Appuyez pour activer la caméra</p>
+    </div>
+    <button class="btn-scan-start" id="btn-start" onclick="demarrerCamera()">📷 Activer la caméra</button>
+  </div>
+
+  <div class="manual-row">
+    <input type="text" id="manual-code" placeholder="Saisir code-barres manuellement…" inputmode="numeric">
+    <button class="btn-ok" onclick="saisieManuelle()">OK</button>
+  </div>
+
+  <div class="result-area" id="result-area">
+    <div class="section-title">Dernières sorties</div>
+    <div id="hist-list">
+      <div style="font-size:13px; color:var(--text2); padding: 8px 0;">Aucune sortie pour le moment.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nom du salarié -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h2>Votre prénom</h2>
+    <p>Il sera enregistré à chaque sortie de stock.</p>
+    <input type="text" id="nom-input" placeholder="Ex : Marie" autocomplete="off">
+    <button class="btn-modal" onclick="validerNom()">Continuer →</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+const API_URL = "https://script.google.com/macros/s/AKfycbz7Mxku1H6yOM77Bx-RdCpoK-2WywExsaNOAOJwHnHkI1JodUdHi8XlKc9I1YRfJpNe/exec";
+
+// ── ÉTAT ─────────────────────────────────────────────────────
+let salarie      = localStorage.getItem("salarie") || "";
+let scanning     = false;
+let scanLock     = false;
+let videoStream  = null;
+let animFrame    = null;
+let articleEnCours = null;
+const historique = JSON.parse(localStorage.getItem("historique") || "[]");
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener("load", () => {
+  if (!salarie) {
+    document.getElementById("modal-bg").classList.remove("hidden");
+    setTimeout(() => document.getElementById("nom-input").focus(), 400);
+  } else {
+    document.getElementById("badge-user").textContent = "👤 " + salarie;
+    document.getElementById("modal-bg").classList.add("hidden");
+  }
+  afficherHistorique();
+});
+
+function validerNom() {
+  const val = document.getElementById("nom-input").value.trim();
+  if (!val) return;
+  salarie = val;
+  localStorage.setItem("salarie", salarie);
+  document.getElementById("badge-user").textContent = "👤 " + salarie;
+  document.getElementById("modal-bg").classList.add("hidden");
+}
+
+function changerNom() {
+  document.getElementById("nom-input").value = salarie;
+  document.getElementById("modal-bg").classList.remove("hidden");
+  setTimeout(() => document.getElementById("nom-input").focus(), 300);
+}
+
+// ── CAMÉRA ────────────────────────────────────────────────────
+async function demarrerCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    videoStream = stream;
+    const video = document.getElementById("video");
+    video.srcObject = stream;
+    await video.play();
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("btn-start").style.display = "none";
+    scanning = true;
+    scannerFrame();
+  } catch (e) {
+    afficherToast("error", "❌", "Caméra inaccessible", "Autorisez l'accès à la caméra dans les réglages Safari, ou utilisez la saisie manuelle.");
+  }
+}
+
+function scannerFrame() {
+  if (!scanning) return;
+  const video  = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "dontInvert" });
+    if (code && !scanLock) {
+      scanLock = true;
+      navigator.vibrate && navigator.vibrate(40);
+      traiterCode(code.data);
+      setTimeout(() => { scanLock = false; }, 3000);
+    }
+  }
+  animFrame = requestAnimationFrame(scannerFrame);
+}
+
+// ── SAISIE MANUELLE ───────────────────────────────────────────
+function saisieManuelle() {
+  const val = document.getElementById("manual-code").value.trim();
+  if (!val) return;
+  traiterCode(val);
+  document.getElementById("manual-code").value = "";
+}
+
+document.getElementById("manual-code").addEventListener("keydown", e => {
+  if (e.key === "Enter") saisieManuelle();
+});
+
+// ── TRAITEMENT DU CODE ────────────────────────────────────────
+async function traiterCode(barcode) {
+  // Afficher carte de chargement
+  afficherLoading(barcode);
+
+  try {
+    const url  = `${API_URL}?barcode=${encodeURIComponent(barcode)}&salarie=${encodeURIComponent(salarie)}&action=consulter`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (!data.succes) {
+      afficherToast("error", "❌", "Introuvable", data.message || "Ce code-barres n'existe pas dans l'inventaire.");
+      return;
+    }
+    articleEnCours = { barcode, data };
+    afficherArticle(data);
+  } catch (e) {
+    afficherToast("error", "⚠️", "Erreur réseau", "Impossible de contacter le serveur. Vérifiez votre connexion.");
+  }
+}
+
+// ── CONFIRMER LA SORTIE ───────────────────────────────────────
+async function confirmerSortie() {
+  if (!articleEnCours) return;
+  const btn = document.getElementById("btn-confirm");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Enregistrement…';
+
+  try {
+    const url  = `${API_URL}?barcode=${encodeURIComponent(articleEnCours.barcode)}&salarie=${encodeURIComponent(salarie)}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (!data.succes) {
+      afficherToast("error", "❌", "Erreur", data.message);
+      btn.disabled = false;
+      btn.textContent = "✓ Confirmer la sortie";
+      return;
+    }
+
+    // Succès
+    ajouterHistorique(data.article, data.stockApres);
+    articleEnCours = null;
+
+    viderResultats();
+
+    if (data.alerte) {
+      afficherToast("warn", "⚠️", "Stock faible !", data.messageAlerte);
+    } else {
+      afficherToast("success", "✅", "Sortie enregistrée", `${data.article} — stock restant : ${data.stockApres} ${data.unite}`);
+    }
+
+    afficherHistorique();
+  } catch (e) {
+    afficherToast("error", "⚠️", "Erreur réseau", "La sortie n'a pas pu être enregistrée.");
+    btn.disabled = false;
+    btn.textContent = "✓ Confirmer la sortie";
+  }
+}
+
+// ── AFFICHAGE ─────────────────────────────────────────────────
+function afficherLoading(barcode) {
+  viderResultats();
+  const area = document.getElementById("result-area");
+  const div  = document.createElement("div");
+  div.className = "toast info";
+  div.innerHTML = `<div class="toast-icon"><span class="spinner" style="border-color:rgba(74,159,224,0.3);border-top-color:var(--accent)"></span></div>
+    <div class="toast-body"><div class="toast-title">Recherche en cours…</div>
+    <div class="toast-msg" style="font-family:var(--mono);font-size:12px">${barcode}</div></div>`;
+  area.insertBefore(div, area.firstChild);
+}
+
+function afficherArticle(d) {
+  viderResultats();
+  const area  = document.getElementById("result-area");
+  const apres = d.stock - 1;
+  let pillClass = "pill-ok";
+  if (apres <= 0) pillClass = "pill-danger";
+  else if (apres <= d.stockMin) pillClass = "pill-warn";
+
+  const card = document.createElement("div");
+  card.className = "article-card";
+  card.id = "article-card";
+  card.innerHTML = `
+    <div class="article-name">${d.article}</div>
+    <div class="article-ref">${d.reference} · ${d.categorie}</div>
+    <div class="stock-row">
+      <div class="stock-pill pill-before">
+        <div class="num">${d.stock}</div>
+        <div class="lbl">Actuel</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stock-pill ${pillClass}">
+        <div class="num">${apres}</div>
+        <div class="lbl">Après</div>
+      </div>
+    </div>
+    <div class="article-meta">📍 ${d.emplacement}</div>
+    <button class="btn-confirm" id="btn-confirm" onclick="confirmerSortie()">✓ Confirmer la sortie</button>
+  `;
+  area.insertBefore(card, area.firstChild);
+
+  if (apres <= d.stockMin) {
+    const banner = document.createElement("div");
+    banner.className = `toast ${apres <= 0 ? "error" : "warn"}`;
+    banner.innerHTML = `<div class="toast-icon">${apres <= 0 ? "🔴" : "⚠️"}</div>
+      <div class="toast-body">
+        <div class="toast-title">${apres <= 0 ? "Stock épuisé après cette sortie !" : "Stock sous le minimum"}</div>
+        <div class="toast-msg">Seuil minimum : ${d.stockMin} ${d.unite}</div>
+      </div>`;
+    area.insertBefore(banner, card.nextSibling);
+  }
+
+  const titre = document.createElement("div");
+  titre.className = "section-title";
+  titre.style.marginTop = "8px";
+  titre.textContent = "Dernières sorties";
+  area.appendChild(titre);
+
+  const histDiv = document.createElement("div");
+  histDiv.id = "hist-list";
+  area.appendChild(histDiv);
+  afficherHistorique();
+}
+
+function afficherToast(type, icon, titre, msg) {
+  viderResultats();
+  const area = document.getElementById("result-area");
+  const div  = document.createElement("div");
+  div.className = `toast ${type}`;
+  div.innerHTML = `<div class="toast-icon">${icon}</div>
+    <div class="toast-body"><div class="toast-title">${titre}</div>
+    <div class="toast-msg">${msg}</div></div>`;
+  area.insertBefore(div, area.firstChild);
+
+  const titre2 = document.createElement("div");
+  titre2.className = "section-title";
+  titre2.style.marginTop = "8px";
+  titre2.textContent = "Dernières sorties";
+  area.appendChild(titre2);
+
+  const histDiv = document.createElement("div");
+  histDiv.id = "hist-list";
+  area.appendChild(histDiv);
+  afficherHistorique();
+}
+
+function viderResultats() {
+  const area = document.getElementById("result-area");
+  area.innerHTML = "";
+  articleEnCours = null;
+}
+
+// ── HISTORIQUE LOCAL ──────────────────────────────────────────
+function ajouterHistorique(nom, stockApres) {
+  const now  = new Date();
+  const time = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  historique.unshift({ nom, stock: stockApres, time });
+  if (historique.length > 20) historique.pop();
+  localStorage.setItem("historique", JSON.stringify(historique));
+}
+
+function afficherHistorique() {
+  const list = document.getElementById("hist-list");
+  if (!list) return;
+  if (!historique.length) {
+    list.innerHTML = `<div style="font-size:13px; color:var(--text2); padding:8px 0;">Aucune sortie pour le moment.</div>`;
+    return;
+  }
+  list.innerHTML = historique.slice(0, 8).map(h => `
+    <div class="hist-item">
+      <div class="hist-dot"></div>
+      <div class="hist-name">${h.nom}</div>
+      <div class="hist-qty">-1</div>
+      <div class="hist-time">${h.time}</div>
+    </div>
+  `).join("");
+}
+</script>
+</body>
+</html>
