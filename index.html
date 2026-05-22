@@ -266,6 +266,29 @@
     margin-bottom: 14px;
   }
 
+  .qty-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qty-label { font-size: 13px; color: var(--text2); flex-shrink: 0; }
+  .qty-controls { display: flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .qty-btn {
+    background: var(--surface2); color: var(--text);
+    border: none; width: 40px; height: 40px;
+    font-size: 20px; font-weight: 300;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .qty-btn:active { background: var(--accent2); }
+  .qty-val {
+    width: 48px; text-align: center;
+    font-size: 18px; font-weight: 600;
+    font-family: var(--mono);
+    background: var(--surface); color: var(--text);
+    border: none; outline: none;
+    padding: 0;
+  }
+
   .btn-confirm {
     width: 100%;
     background: var(--accent);
@@ -540,7 +563,9 @@ async function confirmerSortie() {
   btn.innerHTML = '<span class="spinner"></span>Enregistrement…';
 
   try {
-    const url  = `${API_URL}?barcode=${encodeURIComponent(articleEnCours.barcode)}&salarie=${encodeURIComponent(salarie)}`;
+    const qtyInput = document.getElementById("qty-input");
+    const qte = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+    const url  = `${API_URL}?barcode=${encodeURIComponent(articleEnCours.barcode)}&salarie=${encodeURIComponent(salarie)}&quantite=${qte}`;
     const resp = await fetch(url);
     const data = await resp.json();
 
@@ -603,12 +628,20 @@ function afficherArticle(d) {
         <div class="lbl">Actuel</div>
       </div>
       <div class="arrow">→</div>
-      <div class="stock-pill ${pillClass}">
-        <div class="num">${apres}</div>
+      <div class="stock-pill ${pillClass}" id="after-pill">
+        <div class="num" id="after-num">${apres}</div>
         <div class="lbl">Après</div>
       </div>
     </div>
     <div class="article-meta">📍 ${d.emplacement}</div>
+    <div class="qty-row">
+      <span class="qty-label">Quantité prise :</span>
+      <div class="qty-controls">
+        <button class="qty-btn" onclick="changerQte(-1)">−</button>
+        <input class="qty-val" id="qty-input" type="number" value="1" min="1" max="${d.stock}">
+        <button class="qty-btn" onclick="changerQte(1)">+</button>
+      </div>
+    </div>
     <button class="btn-confirm" id="btn-confirm" onclick="confirmerSortie()">✓ Confirmer la sortie</button>
   `;
   area.insertBefore(card, area.firstChild);
